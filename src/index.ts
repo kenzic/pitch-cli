@@ -4,10 +4,8 @@ require('dotenv').config();
 import fs from 'fs';
 import { Command } from '@commander-js/extra-typings';
 import OpenAI, { toFile } from 'openai';
-import storyToJsonl from './story-to-jsonl';
+import {storyToJsonl} from '@kenzic/story';
 import figlet from 'figlet';
-
-// console.log(figlet.textSync("P I T C H"));
 
 const openai = new OpenAI({
   apiKey: process.env["OPENAI_API_KEY"]
@@ -48,22 +46,26 @@ program
   .action(async (filepath: string) => {
     const plainText = fs.readFileSync(filepath, 'utf8')
     const jsonlOutput = storyToJsonl(plainText);
-    console.log(jsonlOutput)
+
+    console.log(jsonlOutput);
   });
 
 program
   .command("start <filepath>")
   .description("start fine-tuning process")
   .option('-f, --format <format>', 'which format to use', 'jsonl')
-  .option('-s, --simplified <format>', 'use simlified format', false)
-  .action(async (filepath, options, moreoptions) => {
+  .action(async (filepath, options) => {
     // get story file
-    const plainText = fs.readFileSync(filepath, 'utf8')
+    let plainText = fs.readFileSync(filepath, 'utf8');
+
     // convert the story file to JSONL
-    const jsonlOutput = storyToJsonl(plainText);
+    if (options.format === 'story') {
+      plainText = storyToJsonl(plainText);
+    }
+
     // upload file
     const response = await openai.files.create({
-      file: await toFile(Buffer.from(jsonlOutput.join("\n")), "input.jsonl"),
+      file: await toFile(Buffer.from(plainText), "input.jsonl"),
       purpose: 'fine-tune'
     });
 
