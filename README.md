@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Pitch CLI is a command-line interface for the Open AI Fine Tuning API. It allows you to easily interact with the API to turn a `story` file into a fine-tuned model in one step. The CLI also exposes commands that allow you to perform all the file and fine tuning opperations from the command line.
+The Pitch CLI is a command-line interface for the Open AI Fine Tuning API that allows you to perform all the file and fine tuning opperations. Files can be uploaded in `JSONL` or [Story format](https://github.com/kenzic/story)
 
 ## Installation
 
@@ -12,12 +12,14 @@ yarn add @kenzic/pitch-cli
 
 ## Usage
 
-### CLI
-
-#### Story to Fine-Tuned Model
+**Upload file and start fine tuning**
 
 ```bash
-pitch start input.story
-```
-For more information on the story format, see "Story Format Documentation" below.
+$ pitch start input.jsonl
 
+# or
+
+$ pitch start -f story input.jsonl
+```
+
+For more information on the story format, see "[Story format documentation](https://github.com/kenzic/story)"
