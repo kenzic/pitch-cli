@@ -1,16 +1,47 @@
 #!/usr/bin/env node
-require('dotenv').config();
+import "dotenv/config";
 
 import fs from 'fs';
 import figlet from 'figlet';
+import ora from 'ora';
 import OpenAI, { toFile } from 'openai';
 import { Command } from '@commander-js/extra-typings';
 import { storyToJsonl } from '@kenzic/story';
+import { epochToString, runCommand } from './utils';
+
+const getOpenAIKey = () => {
+  const key = process.env["OPENAI_API_KEY"];
+  if (!key) {
+    throw new Error("OPENAI_API_KEY is not set");
+  }
+
+  return key;
+}
 
 const MODEL = "gpt-3.5-turbo";
 
+
+async function waitForTrue(func: () => Promise<boolean>, maxTries = 5, initialDelay = 1000): Promise<void> {
+  let tries = 0;
+  let delay = initialDelay;
+
+  while (tries < maxTries) {
+    await new Promise(resolve => setTimeout(resolve, delay));
+    const result = await func();
+    tries++;
+    if (result) {
+      return;
+    }
+
+    // Increase the delay for the next iteration
+    delay *= 2;
+  }
+
+  throw new Error("Function did not resolve to true after maximum number of tries.");
+}
+
 const openai = new OpenAI({
-  apiKey: process.env["OPENAI_API_KEY"]
+  apiKey: getOpenAIKey(),
 });
 
 const program = new Command();
@@ -26,7 +57,7 @@ const banner = figlet.textSync("PITCH", {
 
 const description = `
 Description:
-  CLI for interacting with the OpenAI API Fine Tuning API.
+  CLI for interacting with the OpenAI API Fine-Tuning API.
 `;
 
 program
@@ -34,13 +65,14 @@ program
   .version('0.0.1')
   .description(description)
   .addHelpText('before', banner)
+  .option('--raw', 'display raw JSON output', false)
   .configureOutput({
     outputError: (str, write) => write(errorColor(str))
   })
 
-
 const file = program.command('file');
 const tune = program.command("tune");
+const model = program.command("model");
 
 program
   .command("convert <filepath>")
@@ -69,22 +101,31 @@ Start fine-tuning process:
       plainText = storyToJsonl(plainText);
     }
 
+    const spinner = ora('Uploading File').start();
     // upload file
     const response = await openai.files.create({
       file: await toFile(Buffer.from(plainText), "input.jsonl"),
       purpose: 'fine-tune'
     });
 
-    if (response.status !== "uploaded") {
-      throw new Error(`Failed to upload ${JSON.stringify(response)}`);
-    }
+    spinner.text = 'Processing File';
+
+    await waitForTrue(async () => {
+      const retrievedFile = await openai.files.retrieve(response.id);
+      return retrievedFile.status === "processed";
+    });
+
+    spinner.text = 'Starting Fine-Tuning';
 
     const job = await openai.fineTuning.jobs.create({
       training_file: response.id,
       model: MODEL
     });
 
+    spinner.succeed("Fine-Tuning Job Kicked Off");
+
     console.table(job);
+
   }).addHelpText('after', `
 Examples:
   $ pitch start input.jsonl
@@ -142,16 +183,19 @@ file
 
 /**
  * ==============================================
- * Fine Tuning CLI Commands
+ * Fine-Tuning CLI Commands
  * ==============================================
  */
 tune
   .command("status <jobId>")
   .description("get status of job")
   .action(async (jobId) => {
-    const job = await openai.fineTunes.retrieve(jobId);
-
-    console.table(job);
+    return runCommand(async () => {
+      return openai.fineTuning.jobs.retrieve(jobId);
+    }, program, {
+      loadingMessage: "List Jobs",
+      successMessage: "Jobs Listed"
+    });
   });
 
 tune
@@ -170,18 +214,65 @@ tune
   .command("list")
   .description("list jobs")
   .action(async () => {
-    // TODO: add pagination
-    let items = await openai.fineTuning.jobs.list();
-
-    console.log(items.data);
+    return runCommand(async () => {
+      return openai.fineTuning.jobs.list();
+    }, program, {
+      hiddenFields: ["fine_tuned_model", "object", "validation_file", "error", "trained_tokens", "organization_id", "model", "result_files", "training_file"],
+      loadingMessage: "List Jobs",
+      successMessage: "Retrieved Jobs"
+    });
   });
 
 tune
   .command("retrieve <jobId>")
   .action(async (jobId) => {
-    const response = await openai.fineTuning.jobs.retrieve(jobId);
+    return runCommand(async () => {
+      return openai.fineTuning.jobs.retrieve(jobId);
+    }, program, {
+      successMessage: "Retrieved Job",
+      loadingMessage: "Retrieving Job"
+    });
+  });
 
-    console.log(response);
+/**
+ * ==============================================
+ * Model CLI Commands
+ * ==============================================
+ */
+model
+  .command("list")
+  .description("list models")
+  .action(async (options) => {
+    return runCommand(async () => {
+      return openai.models.list();
+    }, program, {
+      loadingMessage: "Retrieving Models",
+      successMessage: "Models Retrieved"
+    });
+  });
+
+model
+  .command("retrieve <modelId>")
+  .description("retrieve model")
+  .action(async (modelId: string) => {
+    return runCommand(async () => {
+      return openai.models.retrieve(modelId);
+    }, program, {
+      loadingMessage: "Retrieving Model",
+      successMessage: "Model Retrieved"
+    });
+  });
+
+model
+  .command("delete <modelId>")
+  .description("delete model")
+  .action(async (modelId: string) => {
+    return runCommand(async () => {
+      return openai.models.del(modelId);
+    }, program, {
+      loadingMessage: "Deleting Model",
+      successMessage: "Model Deleted"
+    });
   });
 
 program.parse(process.argv);
