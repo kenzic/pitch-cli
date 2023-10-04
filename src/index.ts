@@ -7,8 +7,16 @@ import ora from 'ora';
 import OpenAI, { toFile } from 'openai';
 import { Command } from '@commander-js/extra-typings';
 import { storyToJsonl } from '@kenzic/story';
-import { epochToString, runCommand } from './utils';
+import { errorColor, runCommand, waitForTrue } from './utils';
 
+// Only supports GPT 3.5 Turbo for now
+const MODEL = "gpt-3.5-turbo";
+
+/**
+ * Retrieves the OpenAI API key from the environment variables.
+ * @throws {Error} If the OPENAI_API_KEY environment variable is not set.
+ * @returns {string} The OpenAI API key.
+ */
 const getOpenAIKey = () => {
   const key = process.env["OPENAI_API_KEY"];
   if (!key) {
@@ -18,38 +26,11 @@ const getOpenAIKey = () => {
   return key;
 }
 
-const MODEL = "gpt-3.5-turbo";
-
-
-async function waitForTrue(func: () => Promise<boolean>, maxTries = 5, initialDelay = 1000): Promise<void> {
-  let tries = 0;
-  let delay = initialDelay;
-
-  while (tries < maxTries) {
-    await new Promise(resolve => setTimeout(resolve, delay));
-    const result = await func();
-    tries++;
-    if (result) {
-      return;
-    }
-
-    // Increase the delay for the next iteration
-    delay *= 2;
-  }
-
-  throw new Error("Function did not resolve to true after maximum number of tries.");
-}
-
 const openai = new OpenAI({
   apiKey: getOpenAIKey(),
 });
 
 const program = new Command();
-
-function errorColor(str: string) {
-  // Add ANSI escape codes to display text in red.
-  return `\x1b[31m${str}\x1b[0m`;
-}
 
 const banner = figlet.textSync("PITCH", {
   font: "Univers",
@@ -140,7 +121,7 @@ Examples:
 file
   .command("upload <filepath>")
   .description("upload file")
-  .action(async (filepath, options) => {
+  .action(async (filepath) => {
     const response = await openai.files.create({
       file: fs.createReadStream(filepath), purpose: 'fine-tune'
     });
@@ -242,7 +223,7 @@ tune
 model
   .command("list")
   .description("list models")
-  .action(async (options) => {
+  .action(async () => {
     return runCommand(async () => {
       return openai.models.list();
     }, program, {
