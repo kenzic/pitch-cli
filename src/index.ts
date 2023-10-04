@@ -12,6 +12,8 @@ import { errorColor, runCommand, waitForTrue } from './utils';
 // Only supports GPT 3.5 Turbo for now
 const MODEL = "gpt-3.5-turbo";
 
+const VERSION = "0.9.4";
+
 /**
  * Retrieves the OpenAI API key from the environment variables.
  * @throws {Error} If the OPENAI_API_KEY environment variable is not set.
@@ -43,7 +45,7 @@ Description:
 
 program
   .name('pitch')
-  .version('0.0.1')
+  .version(VERSION)
   .description(description)
   .addHelpText('before', banner)
   .option('--raw', 'display raw JSON output', false)
@@ -122,29 +124,27 @@ file
   .command("upload <filepath>")
   .description("upload file")
   .action(async (filepath) => {
-    const response = await openai.files.create({
+    return runCommand(program, async () => openai.files.create({
       file: fs.createReadStream(filepath), purpose: 'fine-tune'
-    });
-
-    console.table(response);
+    }));
   });
 
 file
   .command("delete <fileId>")
   .description("delete file")
   .action(async (fileId) => {
-    const response = await openai.files.del(fileId);
-
-    console.table(response);
+    return runCommand(program,
+      async () => openai.files.del(fileId)
+    );
   })
 
 file
   .command("list")
   .description("list files in your account")
   .action(async () => {
-    const response = await openai.files.list();
-
-    console.table(response.data);
+    return runCommand(program,
+      async () => await openai.files.list()
+    );
   });
 
 file
@@ -171,48 +171,47 @@ tune
   .command("status <jobId>")
   .description("get status of job")
   .action(async (jobId) => {
-    return runCommand(async () => {
-      return openai.fineTuning.jobs.retrieve(jobId);
-    }, program, {
-      loadingMessage: "List Jobs",
-      successMessage: "Jobs Listed"
-    });
+    return runCommand(program,
+      async () => openai.fineTuning.jobs.retrieve(jobId),
+      {
+        loadingMessage: "List Jobs",
+        successMessage: "Jobs Listed"
+      });
   });
 
 tune
   .command("create <fileId>")
   .description("create fine-tune job")
   .action(async (fileId) => {
-    const result = await openai.fineTuning.jobs.create({
-      training_file: fileId,
-      model: MODEL
-    });
-
-    console.table(result);
+    return runCommand(program,
+      async () => openai.fineTuning.jobs.create({
+        training_file: fileId,
+        model: MODEL
+      }))
   });
 
 tune
   .command("list")
   .description("list jobs")
   .action(async () => {
-    return runCommand(async () => {
-      return openai.fineTuning.jobs.list();
-    }, program, {
-      hiddenFields: ["fine_tuned_model", "object", "validation_file", "error", "trained_tokens", "organization_id", "model", "result_files", "training_file"],
-      loadingMessage: "List Jobs",
-      successMessage: "Retrieved Jobs"
-    });
+    return runCommand(program,
+      async () => openai.fineTuning.jobs.list(),
+      {
+        hiddenFields: ["fine_tuned_model", "object", "validation_file", "error", "trained_tokens", "organization_id", "model", "result_files", "training_file"],
+        loadingMessage: "List Jobs",
+        successMessage: "Retrieved Jobs"
+      });
   });
 
 tune
   .command("retrieve <jobId>")
   .action(async (jobId) => {
-    return runCommand(async () => {
-      return openai.fineTuning.jobs.retrieve(jobId);
-    }, program, {
-      successMessage: "Retrieved Job",
-      loadingMessage: "Retrieving Job"
-    });
+    return runCommand(program,
+      async () => openai.fineTuning.jobs.retrieve(jobId),
+      {
+        successMessage: "Retrieved Job",
+        loadingMessage: "Retrieving Job"
+      });
   });
 
 /**
@@ -224,36 +223,36 @@ model
   .command("list")
   .description("list models")
   .action(async () => {
-    return runCommand(async () => {
-      return openai.models.list();
-    }, program, {
-      loadingMessage: "Retrieving Models",
-      successMessage: "Models Retrieved"
-    });
+    return runCommand(program,
+      async () => openai.models.list(),
+      {
+        loadingMessage: "Retrieving Models",
+        successMessage: "Models Retrieved"
+      });
   });
 
 model
   .command("retrieve <modelId>")
   .description("retrieve model")
   .action(async (modelId: string) => {
-    return runCommand(async () => {
-      return openai.models.retrieve(modelId);
-    }, program, {
-      loadingMessage: "Retrieving Model",
-      successMessage: "Model Retrieved"
-    });
+    return runCommand(program,
+      async () => openai.models.retrieve(modelId),
+      {
+        loadingMessage: "Retrieving Model",
+        successMessage: "Model Retrieved"
+      });
   });
 
 model
   .command("delete <modelId>")
   .description("delete model")
   .action(async (modelId: string) => {
-    return runCommand(async () => {
-      return openai.models.del(modelId);
-    }, program, {
-      loadingMessage: "Deleting Model",
-      successMessage: "Model Deleted"
-    });
+    return runCommand(program,
+      async () => openai.models.del(modelId),
+      {
+        loadingMessage: "Deleting Model",
+        successMessage: "Model Deleted"
+      });
   });
 
 program.parse(process.argv);

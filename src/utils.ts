@@ -49,8 +49,8 @@ const defaultConfig = {
  * @param config - The configuration options for the command.
  */
 export async function runCommand(
-  func: (args?: unknown) => Promise<unknown>,
   program: Command,
+  func: (args?: unknown) => Promise<unknown>,
   config: Config = {}) {
 
   config = { ...defaultConfig, ...config } as const;
