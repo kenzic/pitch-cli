@@ -6,6 +6,7 @@
     "pitch": "./dist/index.js"
   },
   "license": "MIT",
+  "private": false,
   "scripts": {
     "build": "npx tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
