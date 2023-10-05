@@ -12,7 +12,7 @@ import { errorColor, runCommand, waitForTrue } from './utils';
 // Only supports GPT 3.5 Turbo for now
 const MODEL = "gpt-3.5-turbo";
 
-const VERSION = "0.9.4";
+const VERSION = "0.9.5";
 
 /**
  * Retrieves the OpenAI API key from the environment variables.
